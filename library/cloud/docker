@@ -222,6 +222,22 @@ def _docker_id_quirk(inspect):
     return inspect
 
 
+def _parse_port(port_spec):
+    """ Takes a port spec in the format "22", "22:1234", or
+    "22:192.168.42.1:1234" and returns a tuple of the format
+    ("22/tcp", [{'HostIp': '192.168.42.1', 'HostPort': '1234'}])
+    """
+    parts = port_spec.split(':')
+    if len(parts) == 3:
+        port_dict = {'HostIp': parts[1], 'HostPort': parts[2]}
+    elif len(parts) == 2:
+        port_dict = {'HostIp': '', 'HostPort': parts[2]}
+    else:
+        port_dict = {'HostIp': '', 'HostPort': ''}
+
+    return (parts[0] + '/tcp', [port_dict])
+
+
 class DockerManager:
 
     counters = {'created': 0, 'started': 0, 'stopped': 0,
@@ -258,7 +274,8 @@ class DockerManager:
 
         self.ports = None
         if self.module.params.get('ports'):
-            self.ports = self.module.params.get('ports').split(",")
+            self.ports = dict([_parse_port(p)
+                               for p in self.module.params.get('ports').split(",")])
 
         self.env = None
         if self.module.params.get('env'):
@@ -340,7 +357,7 @@ class DockerManager:
     def create_containers(self, count=1):
         params = {'image':        self.module.params.get('image'),
                   'command':      self.module.params.get('command'),
-                  'ports':        self.ports,
+                  'ports':        dict([(p, {}) for p in self.ports]),
                   'volumes':      self.volumes,
                   'volumes_from': self.module.params.get('volumes_from'),
                   'mem_limit':    _human_to_bytes(self.module.params.get('memory_limit')),
@@ -372,7 +389,8 @@ class DockerManager:
     def start_containers(self, containers):
         for i in containers:
                 self.client.start(
-                    i['Id'], lxc_conf=self.lxc_conf, binds=self.binds)
+                    i['Id'], lxc_conf=self.lxc_conf, binds=self.binds,
+                    port_bindings=self.ports)
                 self.increment_counter('started')
 
     def stop_containers(self, containers):
