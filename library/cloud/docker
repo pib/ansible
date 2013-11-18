@@ -231,7 +231,7 @@ def _parse_port(port_spec):
     if len(parts) == 3:
         port_dict = {'HostIp': parts[1], 'HostPort': parts[2]}
     elif len(parts) == 2:
-        port_dict = {'HostIp': '', 'HostPort': parts[2]}
+        port_dict = {'HostIp': '', 'HostPort': parts[1]}
     else:
         port_dict = {'HostIp': '', 'HostPort': ''}
 
